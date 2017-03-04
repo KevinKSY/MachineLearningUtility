@@ -187,3 +187,85 @@ def svm_makeMFunction(svm_model, xScaler, yScaler, funcName):
     except:
         print ("Unexpected error:", sys.exc_info()[0])
         raise
+
+def svm_makeCFunction(svm_model, xScaler, yScaler, funcName):
+
+    if not(os.path.isfile('SVM_temp.h') and os.path.isfile('SVM_temp.cpp')):
+        print("The 20-sim model template file ('20Sim_tmp.tmp') missing")
+        return False
+    else:
+#        try:
+        np.set_printoptions(threshold=np.inf)
+
+        nSV = svmModel.get_nr_sv()
+        SV = svmModel.get_SV()
+        svCoeff = svmModel.get_sv_coef()
+
+        textToSearch = ['%%FUNCNAME%%', '%%funcName%%', '%%noInput%%',
+                        '%%x_data_bias%%', '%%x_data_scale%%',
+                        '%%nSVElem%%', '%%nSV%%', '%%svCoeff%%', '%%gamma%%',
+                        '%%rho%%', '%%y_data_scale%%', '%%y_data_bias%%',
+                        '%%SVElem%%']
+        pathToWrite = os.getcwd()
+        FUNCNAME = funcName.upper()
+        noInput = 0
+        for i in range(nSV):
+            noInput = max(list(SV[i].keys())) if max(list(SV[i].keys())) > noInput else noInput
+        nSVElem = nSV * noInput
+        Mat = np.zeros([noInput,nSV])
+        for i in range(nSV):
+            for j in list(SV[i]):
+                if j > 0:
+                    Mat[j-1,i] = SV[i][j]
+        Mat = Mat.reshape([nSVElem])
+        SVElem = np.array2string(Mat, separator = ',')[1:-1]
+        Mat = np.zeros([nSV])
+        for i in range(nSV):
+            Mat[i] = svCoeff[i][0]
+        svCoeff = np.array2string(Mat, separator=',')[1:-1]
+        rho = str(svm_model.rho[0])
+        gamma = str(svmModel.param.gamma)
+        x_data_bias = np.array2string(xScaler[0,:],separator=',')[1:-1]
+        x_data_scale = np.array2string(xScaler[1,:],separator=',')[1:-1]
+        y_data_bias = str(yScaler[0])
+        y_data_scale = str(yScaler[1])
+
+        textToReplace = [FUNCNAME, funcName, str(noInput), x_data_bias,
+                        x_data_scale, str(nSVElem), str(nSV), svCoeff,
+                        gamma, rho, y_data_scale, y_data_bias, SVElem]
+
+        fileNameTemp = ['SVM_temp.h', 'SVM_temp.cpp']
+        fileName = [funcName + '.h', funcName + '.cpp']
+
+        for j in range(len(fileNameTemp)):
+            copyfile(fileNameTemp[j], fileName[j])
+
+            # Read in the file
+            with open(fileName[j], 'r') as file:
+                filedata = file.read()
+
+            # Replace the target string
+            for i, textNow in enumerate(textToSearch):
+                filedata = filedata.replace(textNow, textToReplace[i])
+
+            with open(fileName[j], 'w') as file:
+                file.write(filedata)
+
+            # Write the file out again
+
+
+        return True
+        """
+        except IOError as e:
+            print ("I/O error({0}): {1}".format(e.errno, e.strerror))
+            return False
+        except ValueError as e:
+            print ("Value error: {0}".format(e))
+            return False
+        except TypeError as e:
+            print ("Type error: {0}".format(e))
+            return False
+        except:
+            print ("Unexpected error:", sys.exc_info()[0])
+            raise
+        """
